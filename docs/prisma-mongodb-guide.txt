@@ -1,0 +1,364 @@
+// MongoDB용 Prisma Schema 완전 가이드
+
+generator client {
+provider = "prisma-client-js"
+}
+
+datasource db {
+provider = "mongodb"
+url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 1. ObjectId 설정 (가장 중요!)
+// ============================================
+
+model User {
+// MongoDB의 _id 필드 매핑
+id        String   @id @default(auto()) @map("_id") @db.ObjectId
+//        ^^^^^^^^ String 타입으로 정의
+//                 ^^^^ 자동 생성
+//                           ^^^^^^^^^^^ MongoDB의 _id 필드에 매핑
+//                                       ^^^^^^^^^^^ ObjectId 타입 지정
+
+email     String   @unique
+name      String
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+// Relations에서도 ObjectId 사용
+posts     Post[]
+profile   Profile?
+
+@@map("users") // 컬렉션 이름 매핑
+}
+
+// ============================================
+// 2. 관계 설정 (Relations)
+// ============================================
+
+// One-to-One 관계
+model Profile {
+id     String @id @default(auto()) @map("_id") @db.ObjectId
+bio    String?
+avatar String?
+
+// 관계 필드
+user   User   @relation(fields: [userId], references: [id])
+userId String @unique @db.ObjectId // 외래키도 ObjectId
+
+@@map("profiles")
+}
+
+// One-to-Many 관계
+model Post {
+id        String   @id @default(auto()) @map("_id") @db.ObjectId
+title     String
+content   String
+published Boolean  @default(false)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+// 작성자 관계
+author   User   @relation(fields: [authorId], references: [id])
+authorId String @db.ObjectId
+
+// 댓글 관계 (역방향)
+comments Comment[]
+
+// Many-to-Many 관계 (배열로 ID 저장)
+categoryIds String[]   @db.ObjectId
+categories  Category[] @relation(fields: [categoryIds], references: [id])
+
+@@map("posts")
+}
+
+model Comment {
+id      String @id @default(auto()) @map("_id") @db.ObjectId
+content String
+
+// 게시글 관계
+post   Post   @relation(fields: [postId], references: [id])
+postId String @db.ObjectId
+
+createdAt DateTime @default(now())
+
+@@map("comments")
+}
+
+// Many-to-Many 관계
+model Category {
+id      String   @id @default(auto()) @map("_id") @db.ObjectId
+name    String   @unique
+slug    String   @unique
+
+// 역방향 Many-to-Many
+postIds String[] @db.ObjectId
+posts   Post[]   @relation(fields: [postIds], references: [id])
+
+@@map("categories")
+}
+
+// ============================================
+// 3. 복합 타입 (Composite Types / Embedded Documents)
+// ============================================
+
+// 임베디드 문서 타입 정의
+type Address {
+street  String
+city    String
+state   String?
+zip     String
+country String @default("Korea")
+}
+
+type Photo {
+url       String
+width     Int    @default(300)
+height    Int    @default(200)
+alt       String?
+size      Int?   // 파일 크기 (bytes)
+}
+
+// 복합 타입 사용
+model Customer {
+id        String   @id @default(auto()) @map("_id") @db.ObjectId
+email     String   @unique
+name      String
+
+// 단일 임베디드 문서
+address   Address?
+
+// 임베디드 문서 배열
+photos    Photo[]
+
+createdAt DateTime @default(now())
+
+@@map("customers")
+}
+
+// ============================================
+// 4. 배열과 스칼라 리스트
+// ============================================
+
+model Product {
+id          String   @id @default(auto()) @map("_id") @db.ObjectId
+name        String
+description String?
+price       Float
+
+// 스칼라 배열들
+tags        String[]    // 문자열 배열
+sizes       String[]    // 사이즈 옵션
+colors      String[]    // 색상 옵션
+features    String[]    // 특징들
+
+// 숫자 배열
+ratings     Int[]       // 평점들
+
+// 이미지들 (복합 타입 배열)
+images      Photo[]
+
+// 재고 정보 (임베디드)
+inventory   Inventory?
+
+createdAt   DateTime @default(now())
+updatedAt   DateTime @updatedAt
+
+@@map("products")
+}
+
+type Inventory {
+stock       Int      @default(0)
+reserved    Int      @default(0)
+lowStock    Boolean  @default(false)
+lastUpdated DateTime @default(now())
+}
+
+// ============================================
+// 5. 인덱스와 제약조건
+// ============================================
+
+model Article {
+id        String   @id @default(auto()) @map("_id") @db.ObjectId
+title     String
+slug      String   @unique // 단일 필드 유니크
+content   String
+status    Status   @default(DRAFT)
+
+authorId  String   @db.ObjectId
+author    User     @relation(fields: [authorId], references: [id])
+
+tags      String[]
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+// 복합 유니크 제약조건
+@@unique([authorId, slug])
+
+// 인덱스 (MongoDB에서는 db.push 시 생성됨)
+@@index([status])
+@@index([createdAt])
+@@index([tags])
+
+@@map("articles")
+}
+
+enum Status {
+DRAFT
+PUBLISHED
+ARCHIVED
+}
+
+// ============================================
+// 6. JSON 데이터 처리
+// ============================================
+
+model Settings {
+id       String @id @default(auto()) @map("_id") @db.ObjectId
+key      String @unique
+
+// JSON 타입 - 유연한 데이터 저장
+value    Json
+
+// 메타데이터도 JSON으로
+metadata Json?
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+@@map("settings")
+}
+
+model Event {
+id        String   @id @default(auto()) @map("_id") @db.ObjectId
+name      String
+
+// 이벤트 데이터 (JSON)
+data      Json
+
+// 참가자 정보 (JSON 배열)
+participants Json[]
+
+createdAt DateTime @default(now())
+
+@@map("events")
+}
+
+// ============================================
+// 7. 특수 필드 타입들
+// ============================================
+
+model FileUpload {
+id          String    @id @default(auto()) @map("_id") @db.ObjectId
+filename    String
+mimetype    String
+size        BigInt    // 큰 파일 크기
+
+// Binary 데이터는 일반적으로 GridFS 사용 권장
+// 작은 파일의 경우만 직접 저장
+content     Bytes?
+
+// 파일 메타데이터
+metadata    Json?
+
+uploadedAt  DateTime  @default(now())
+
+@@map("file_uploads")
+}
+
+// ============================================
+// 8. 뷰 (Views) - 읽기 전용
+// ============================================
+
+// MongoDB 뷰 정의 (읽기 전용)
+view UserStats {
+id          String @map("_id")
+name        String
+email       String
+postCount   Int    @map("postCount")
+commentCount Int   @map("commentCount")
+
+@@map("user_stats")
+}
+
+// ============================================
+// 9. 고급 패턴들
+// ============================================
+
+// 다형성 패턴 (Polymorphic)
+model Notification {
+id        String @id @default(auto()) @map("_id") @db.ObjectId
+type      String // "POST_LIKE", "COMMENT", "FOLLOW" 등
+
+// 참조할 수 있는 다양한 타입들
+targetId  String @db.ObjectId
+
+// 알림 데이터 (JSON으로 유연하게)
+data      Json
+
+userId    String @db.ObjectId
+user      User   @relation(fields: [userId], references: [id])
+
+read      Boolean  @default(false)
+createdAt DateTime @default(now())
+
+@@index([userId, read])
+@@index([createdAt])
+
+@@map("notifications")
+}
+
+// 계층 구조 (Hierarchical)
+model Category2 {
+id        String      @id @default(auto()) @map("_id") @db.ObjectId
+name      String
+slug      String      @unique
+
+// 부모 카테고리
+parentId  String?     @db.ObjectId
+parent    Category2?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+// 자식 카테고리들
+children  Category2[] @relation("CategoryHierarchy")
+
+// 경로 (조회 최적화용)
+path      String[]    // ["root", "electronics", "phones"]
+
+level     Int         @default(0)
+
+@@index([parentId])
+@@index([level])
+
+@@map("categories_hierarchical")
+}
+
+// ============================================
+// 10. 감사 로그 (Audit Log)
+// ============================================
+
+model AuditLog {
+id        String   @id @default(auto()) @map("_id") @db.ObjectId
+
+// 액션 정보
+action    String   // CREATE, UPDATE, DELETE
+entity    String   // User, Post, etc.
+entityId  String   @db.ObjectId
+
+// 변경 사항
+changes   Json?    // before/after 데이터
+
+// 사용자 정보
+userId    String?  @db.ObjectId
+userAgent String?
+ipAddress String?
+
+createdAt DateTime @default(now())
+
+@@index([entity, entityId])
+@@index([userId])
+@@index([createdAt])
+
+@@map("audit_logs")
+}

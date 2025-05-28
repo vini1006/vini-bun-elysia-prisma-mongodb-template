@@ -13,11 +13,20 @@
 /out/
 
 # production
-/build
+# output
+out
+dist
+build
+*.tgz
 
 # misc
 .DS_Store
 *.pem
+
+# logs
+logs
+_.log
+report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # debug
 npm-debug.log*
@@ -30,8 +39,16 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# caches
+.eslintcache
+.cache
+*.tsbuildinfo
+
 # vercel
 .vercel
+
+#env
+.env
 
 **/*.trace
 **/*.zip
@@ -40,3 +57,10 @@ yarn-error.log*
 **/*.log
 package-lock.json
 **/*.bun
+
+# Editor and IDE specific
+.idea
+.vscode
+.cursor
+
+/src/generated/prisma
