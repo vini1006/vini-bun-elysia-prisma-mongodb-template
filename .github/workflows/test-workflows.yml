@@ -15,6 +15,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
+    - name: Print Secrets (for debugging only)
+      run: |
+        echo "AWS_ROLE_ARN=${{ secrets.AWS_ROLE_ARN }}"
+        echo "AWS_REGION=${{ secrets.AWS_REGION }}"
+      shell: bash
+
     - name: Configure AWS credentials with OIDC
       uses: aws-actions/configure-aws-credentials@v3
       with:
