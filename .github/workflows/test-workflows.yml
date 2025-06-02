@@ -16,7 +16,10 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{secrets.AWS_ACCOUNT_ID}}:role/${{secrets.AWS_ROLE_NAME}}
-          aws-region: ap-northeast-2
-
+          aws-region: ap-northeast-2          
+      - name: Debug Secrets
+        run: |
+          echo "Account ID: $AWS_ACCOUNT_ID, Role Name: $AWS_ROLE_NAME";
+        
       - name: Verify identity with AWS STS
         run: aws sts get-caller-identity
