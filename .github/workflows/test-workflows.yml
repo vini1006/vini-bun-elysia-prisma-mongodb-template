@@ -1,7 +1,7 @@
-name: Test AWS OIDC Connection
+name: Test AWS OIDC Access
 
 on:
-  workflow_dispatch:  # 수동 실행용 트리거
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -12,14 +12,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Configure AWS credentials from OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{secrets.AWS_ACCOUNT_ID}}:role/${{secrets.AWS_ROLE_NAME}}
-          aws-region: ap-northeast-2          
-      - name: Debug Secrets
-        run: |
-          echo "Account ID: $AWS_ACCOUNT_ID, Role Name: $AWS_ROLE_NAME";
-        
-      - name: Verify identity with AWS STS
-        run: aws sts get-caller-identity
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials with OIDC
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Verify Identity
+      run: |
+        aws sts get-caller-identity
